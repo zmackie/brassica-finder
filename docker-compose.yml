@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  agent:
+    build: .
+    container_name: aws-privesc-agent
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - AWS_PRIVESC_SANDBOX=1
+    volumes:
+      # Mount for output reports
+      - ./reports:/app/reports
+      # Mount AWS credentials (read-only)
+      - ~/.aws:/home/agent/.aws:ro
+    # Security constraints
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: false
+    tmpfs:
+      - /tmp
+    networks:
+      - agent-network
+
+  # Optional: LocalStack for testing
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=iam,sts,ec2,lambda,s3
+      - DEBUG=0
+    volumes:
+      - ./localstack:/var/lib/localstack
+    networks:
+      - agent-network
+    profiles:
+      - testing
+
+networks:
+  agent-network:
+    driver: bridge
